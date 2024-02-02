@@ -90,27 +90,27 @@ func (p *kvBulkProviderPs) worker() {
 	for op := range p.workerChan {
 		switch i := op.i.(type) {
 		case *GetOp:
-			go p.Get(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
+			p.Get(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
 		case *GetAndTouchOp:
-			go p.GetAndTouch(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
+			p.GetAndTouch(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
 		case *TouchOp:
-			go p.Touch(op.ctx, i, op.spanContext, op.c, op.signal)
+			p.Touch(op.ctx, i, op.spanContext, op.c, op.signal)
 		case *RemoveOp:
-			go p.Remove(op.ctx, i, op.spanContext, op.c, op.signal)
+			p.Remove(op.ctx, i, op.spanContext, op.c, op.signal)
 		case *UpsertOp:
-			go p.Upsert(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
+			p.Upsert(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
 		case *InsertOp:
-			go p.Insert(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
+			p.Insert(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
 		case *ReplaceOp:
-			go p.Replace(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
+			p.Replace(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
 		case *AppendOp:
-			go p.Append(op.ctx, i, op.spanContext, op.c, op.signal)
+			p.Append(op.ctx, i, op.spanContext, op.c, op.signal)
 		case *PrependOp:
-			go p.Prepend(op.ctx, i, op.spanContext, op.c, op.signal)
+			p.Prepend(op.ctx, i, op.spanContext, op.c, op.signal)
 		case *IncrementOp:
-			go p.Increment(op.ctx, i, op.spanContext, op.c, op.signal)
+			p.Increment(op.ctx, i, op.spanContext, op.c, op.signal)
 		case *DecrementOp:
-			go p.Decrement(op.ctx, i, op.spanContext, op.c, op.signal)
+			p.Decrement(op.ctx, i, op.spanContext, op.c, op.signal)
 		}
 	}
 }
