@@ -2,16 +2,30 @@ package gocb
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 )
 
+type bulkOpChanStruct struct {
+	ctx         context.Context
+	i           BulkOp
+	spanContext RequestSpanContext
+	c           *Collection
+	transcoder  Transcoder
+	signal      chan BulkOp
+}
+
 type kvBulkProviderPs struct {
-	client kv_v1.KvServiceClient
+	client     kv_v1.KvServiceClient
+	once       sync.Once
+	workerChan chan bulkOpChanStruct
 }
 
 func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) error {
+	p.once.Do(p.initWorkers)
+
 	var tracectx RequestSpanContext
 	if opts.ParentSpan != nil {
 		tracectx = opts.ParentSpan.Context()
@@ -43,29 +57,13 @@ func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) 
 	//   individual op handlers when they dispatch their signal).
 	signal := make(chan BulkOp, len(ops))
 	for _, item := range ops {
-		switch i := item.(type) {
-		case *GetOp:
-			go p.Get(ctx, i, span.Context(), c, transcoder, signal)
-		case *GetAndTouchOp:
-			go p.GetAndTouch(ctx, i, span.Context(), c, transcoder, signal)
-		case *TouchOp:
-			go p.Touch(ctx, i, span.Context(), c, signal)
-		case *RemoveOp:
-			go p.Remove(ctx, i, span.Context(), c, signal)
-		case *UpsertOp:
-			go p.Upsert(ctx, i, span.Context(), c, transcoder, signal)
-		case *InsertOp:
-			go p.Insert(ctx, i, span.Context(), c, transcoder, signal)
-		case *ReplaceOp:
-			go p.Replace(ctx, i, span.Context(), c, transcoder, signal)
-		case *AppendOp:
-			go p.Append(ctx, i, span.Context(), c, signal)
-		case *PrependOp:
-			go p.Prepend(ctx, i, span.Context(), c, signal)
-		case *IncrementOp:
-			go p.Increment(ctx, i, span.Context(), c, signal)
-		case *DecrementOp:
-			go p.Decrement(ctx, i, span.Context(), c, signal)
+		p.workerChan <- bulkOpChanStruct{
+			ctx:         ctx,
+			i:           item,
+			spanContext: span.Context(),
+			c:           c,
+			transcoder:  transcoder,
+			signal:      signal,
 		}
 	}
 
@@ -76,6 +74,45 @@ func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) 
 	}
 
 	return nil
+}
+
+func (p *kvBulkProviderPs) initWorkers() {
+	const _workerCount = 1000
+
+	p.workerChan = make(chan bulkOpChanStruct)
+
+	for i := 0; i < _workerCount; i++ {
+		go p.worker()
+	}
+}
+
+func (p *kvBulkProviderPs) worker() {
+	for op := range p.workerChan {
+		switch i := op.i.(type) {
+		case *GetOp:
+			go p.Get(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
+		case *GetAndTouchOp:
+			go p.GetAndTouch(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
+		case *TouchOp:
+			go p.Touch(op.ctx, i, op.spanContext, op.c, op.signal)
+		case *RemoveOp:
+			go p.Remove(op.ctx, i, op.spanContext, op.c, op.signal)
+		case *UpsertOp:
+			go p.Upsert(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
+		case *InsertOp:
+			go p.Insert(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
+		case *ReplaceOp:
+			go p.Replace(op.ctx, i, op.spanContext, op.c, op.transcoder, op.signal)
+		case *AppendOp:
+			go p.Append(op.ctx, i, op.spanContext, op.c, op.signal)
+		case *PrependOp:
+			go p.Prepend(op.ctx, i, op.spanContext, op.c, op.signal)
+		case *IncrementOp:
+			go p.Increment(op.ctx, i, op.spanContext, op.c, op.signal)
+		case *DecrementOp:
+			go p.Decrement(op.ctx, i, op.spanContext, op.c, op.signal)
+		}
+	}
 }
 
 func (p *kvBulkProviderPs) Get(ctx context.Context, item *GetOp, tracectx RequestSpanContext, c *Collection,
