@@ -77,7 +77,7 @@ func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) 
 }
 
 func (p *kvBulkProviderPs) initWorkers() {
-	const _workerCount = 1000
+	const _workerCount = 10000
 
 	p.workerChan = make(chan bulkOpChanStruct)
 
