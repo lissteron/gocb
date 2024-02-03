@@ -3,6 +3,7 @@ package gocb
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -49,6 +50,19 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 	}
 
 	return agent.Do(c, ops, opts)
+}
+
+func (c *Collection) KvCoreBulkProvider() (kvProviderCoreProvider, error) {
+	agent, err := c.getKvBulkProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	if a, ok := agent.(*kvBulkProviderCore); ok {
+		return a.agent, nil
+	}
+
+	return nil, fmt.Errorf("unable to convert kv provider to core kv provider")
 }
 
 // GetOp represents a type of `BulkOp` used for Get operations. See BulkOp.

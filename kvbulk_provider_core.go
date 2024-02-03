@@ -74,6 +74,10 @@ func (p *kvBulkProviderCore) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions
 	return nil
 }
 
+func (p *kvBulkProviderCore) Agent() kvProviderCoreProvider {
+	return p.agent
+}
+
 func (p *kvBulkProviderCore) Get(item *GetOp, tracectx RequestSpanContext, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := c.startKvOpTrace("get", tracectx, false)
